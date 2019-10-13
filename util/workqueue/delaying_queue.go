@@ -17,7 +17,12 @@ limitations under the License.
 package workqueue
 
 import (
+	"bytes"
 	"container/heap"
+	"fmt"
+	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/clock"
@@ -45,7 +50,6 @@ func newDelayingQueue(clock clock.Clock, name string) DelayingInterface {
 	ret := &delayingType{
 		Interface:         NewNamed(name),
 		clock:             clock,
-		heartbeat:         clock.NewTicker(maxWait),
 		stopCh:            make(chan struct{}),
 		waitingForAddCh:   make(chan *waitFor, 1000),
 		metrics:           newRetryMetrics(name),
@@ -66,9 +70,6 @@ type delayingType struct {
 
 	// stopCh lets us signal a shutdown to the waiting loop
 	stopCh chan struct{}
-
-	// heartbeat ensures we wait no more than maxWait before firing
-	heartbeat clock.Ticker
 
 	// waitingForAddCh is a buffered channel that feeds waitingForAdd
 	waitingForAddCh chan *waitFor
@@ -95,6 +96,14 @@ type waitFor struct {
 // container/heap. Push adds an item at index Len(), and container/heap
 // percolates it into the correct location.
 type waitForPriorityQueue []*waitFor
+
+func (pq waitForPriorityQueue) String() string {
+	var sb strings.Builder
+	for _, str := range pq {
+		sb.WriteString(fmt.Sprintf("%v,",str.data))
+	}
+	return sb.String()
+}
 
 func (pq waitForPriorityQueue) Len() int {
 	return len(pq)
@@ -137,7 +146,6 @@ func (pq waitForPriorityQueue) Peek() interface{} {
 func (q *delayingType) ShutDown() {
 	q.Interface.ShutDown()
 	close(q.stopCh)
-	q.heartbeat.Stop()
 }
 
 // AddAfter adds the given item to the work queue after the given delay
@@ -163,6 +171,15 @@ func (q *delayingType) AddAfter(item interface{}, duration time.Duration) {
 	}
 }
 
+func getGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
+
 // maxWait keeps a max bound on the wait time. It's just insurance against weird things happening.
 // Checking the queue every 10 seconds isn't expensive and we know that we'll never end up with an
 // expired item sitting for more than 10 seconds.
@@ -172,13 +189,12 @@ const maxWait = 10 * time.Second
 func (q *delayingType) waitingLoop() {
 	defer utilruntime.HandleCrash()
 
-	// Make a placeholder channel to use when there are no items in our list
-	never := make(<-chan time.Time)
-
 	waitingForQueue := &waitForPriorityQueue{}
 	heap.Init(waitingForQueue)
 
 	waitingEntryByData := map[t]*waitFor{}
+
+	var nextReadyAt *time.Timer
 
 	for {
 		if q.Interface.ShuttingDown() {
@@ -199,21 +215,30 @@ func (q *delayingType) waitingLoop() {
 			delete(waitingEntryByData, entry.data)
 		}
 
-		// Set up a wait for the first item's readyAt (if one exists)
-		nextReadyAt := never
-		if waitingForQueue.Len() > 0 {
+		// Stop any previous timer
+		if nextReadyAt != nil {
+			fmt.Printf("%d - stop nextReady\n",getGID())
+			nextReadyAt.Stop()
+		}
+
+		// Even if queue is empty enforce a heartbeat
+		if waitingForQueue.Len() == 0 {
+			nextReadyAt = time.NewTimer(maxWait)
+		} else if waitingForQueue.Len() > 0 {
 			entry := waitingForQueue.Peek().(*waitFor)
-			nextReadyAt = q.clock.After(entry.readyAt.Sub(now))
+			afterValue := entry.readyAt.Sub(now)
+			fmt.Printf("%d - queue: %v - %v - afterValue: %v\n", getGID(), *waitingForQueue, entry.data, afterValue)
+			nextReadyAt = time.NewTimer(afterValue)
 		}
 
 		select {
 		case <-q.stopCh:
+			if nextReadyAt != nil {
+				nextReadyAt.Stop()
+			}
 			return
 
-		case <-q.heartbeat.C():
-			// continue the loop, which will add ready items
-
-		case <-nextReadyAt:
+		case <-nextReadyAt.C:
 			// continue the loop, which will add ready items
 
 		case waitEntry := <-q.waitingForAddCh:

@@ -1,0 +1,43 @@
+module k8s.io/client-go
+
+go 1.13
+
+require (
+	cloud.google.com/go v0.1.1-0.20160913182117-3b1ae45394a2
+	github.com/Azure/go-autorest v11.1.0+incompatible
+	github.com/davecgh/go-spew v1.1.1-0.20170626231645-782f4967f2dc
+	github.com/dgrijalva/jwt-go v3.0.1-0.20160705203006-01aeca54ebda+incompatible
+	github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96
+	github.com/evanphx/json-patch v4.2.0+incompatible
+	github.com/gogo/protobuf v0.0.0-20171007142547-342cbe0a0415
+	github.com/golang/groupcache v0.0.0-20160516000752-02826c3e7903
+	github.com/golang/protobuf v1.1.0
+	github.com/google/btree v0.0.0-20160524151835-7d79101e329e
+	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
+	github.com/googleapis/gnostic v0.0.0-20170729233727-0c5108395e2d
+	github.com/gophercloud/gophercloud v0.0.0-20190126172459-c818fa66e4c8
+	github.com/gregjones/httpcache v0.0.0-20170728041850-787624de3eb7
+	github.com/hashicorp/golang-lru v0.5.0
+	github.com/imdario/mergo v0.3.5
+	github.com/json-iterator/go v0.0.0-20180701071628-ab8a2e0c74be
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+	github.com/modern-go/reflect2 v1.0.1
+	github.com/peterbourgon/diskv v2.0.1+incompatible
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
+	github.com/spf13/pflag v1.0.1
+	github.com/stretchr/testify v1.2.2-0.20180319223459-c679ae2cc0cb
+	golang.org/x/crypto v0.0.0-20180808211826-de0752318171
+	golang.org/x/net v0.0.0-20190206173232-65e2d4e15006
+	golang.org/x/oauth2 v0.0.0-20170412232759-a6bd8cefa181
+	golang.org/x/sys v0.0.0-20171031081856-95c657629925
+	golang.org/x/text v0.0.0-20170810154203-b19bf474d317
+	golang.org/x/time v0.0.0-20161028155119-f51c12702a4d
+	gopkg.in/inf.v0 v0.9.0
+	gopkg.in/yaml.v2 v2.2.1
+	k8s.io/api v0.0.0-20190313235455-40a48860b5ab
+	k8s.io/apimachinery v0.0.0-20190313205120-d7deff9243b1
+	k8s.io/klog v0.2.1-0.20190306015804-8e90cee79f82
+	k8s.io/kube-openapi v0.0.0-20190228160746-b3a7cee44a30
+	k8s.io/utils v0.0.0-20190221042446-c2654d5206da
+	sigs.k8s.io/yaml v1.1.0
+)
